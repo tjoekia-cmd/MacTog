@@ -547,7 +547,7 @@ async function generateContentWithRetry(
 
       if (isTransient && attempt <= maxRetries) {
         const delay = initialDelayMs * Math.pow(2.2, attempt - 1) * (0.8 + Math.random() * 0.4);
-        console.warn(`[Gemini API] Transient error (503/429/Unavailable) encountered on attempt ${attempt}/${maxRetries}. Retrying in ${Math.round(delay)}ms... Error context: ${error?.message || error}`);
+        console.log(`[Gemini API Status] Service busy (attempt ${attempt}/${maxRetries}). Retrying in ${Math.round(delay)}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       } else {
         throw error;
