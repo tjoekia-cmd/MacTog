@@ -738,9 +738,9 @@ export default function App() {
   const bbfsProbabilityAnalysis = useMemo(() => {
     if (!history || history.length === 0) {
       return {
-        digits5: { past2D: 0, past3D: 0, past4D: 0, future2D: 0, future3D: 0, future4D: 0 },
-        digits6: { past2D: 0, past3D: 0, past4D: 0, future2D: 0, future3D: 0, future4D: 0 },
-        digits7: { past2D: 0, past3D: 0, past4D: 0, future2D: 0, future3D: 0, future4D: 0 }
+        digits5: { past2D: 0, past3D: 0, past4D: 0, future2D: 0, future3D: 0, future4D: 0, hit2DCount: 0, hit3DCount: 0, hit4DCount: 0, recentHits: [] },
+        digits6: { past2D: 0, past3D: 0, past4D: 0, future2D: 0, future3D: 0, future4D: 0, hit2DCount: 0, hit3DCount: 0, hit4DCount: 0, recentHits: [] },
+        digits7: { past2D: 0, past3D: 0, past4D: 0, future2D: 0, future3D: 0, future4D: 0, hit2DCount: 0, hit3DCount: 0, hit4DCount: 0, recentHits: [] }
       };
     }
 
@@ -750,8 +750,12 @@ export default function App() {
       let hit2D = 0;
       let hit3D = 0;
       let hit4D = 0;
+      const recentHits: any[] = [];
 
-      history.forEach(d => {
+      // Loop draws reverse (from newest to oldest) to get the most recent hits first
+      for (let i = history.length - 1; i >= 0; i--) {
+        const d = history[i];
+        if (!d.digits) continue;
         const [as, kop, kepala, ekor] = d.digits;
         const sub2D = set.includes(kepala) && set.includes(ekor);
         const sub3D = set.includes(kop) && set.includes(kepala) && set.includes(ekor);
@@ -760,12 +764,27 @@ export default function App() {
         if (sub2D) hit2D++;
         if (sub3D) hit3D++;
         if (sub4D) hit4D++;
-      });
+
+        if ((sub2D || sub3D || sub4D) && recentHits.length < 5) {
+          const hitType = sub4D ? "4D" : sub3D ? "3D" : "2D";
+          recentHits.push({
+            id: d.id,
+            date: d.date,
+            timeSlot: d.timeSlot,
+            drawCodeString: d.drawCodeString,
+            hitType
+          });
+        }
+      }
 
       return {
         past2D: (hit2D / history.length) * 100,
         past3D: (hit3D / history.length) * 100,
-        past4D: (hit4D / history.length) * 100
+        past4D: (hit4D / history.length) * 100,
+        hit2DCount: hit2D,
+        hit3DCount: hit3D,
+        hit4DCount: hit4D,
+        recentHits
       };
     };
 
@@ -832,6 +851,55 @@ export default function App() {
       digits7: { ...stats7, ...fstats7 }
     };
   }, [history, bbfsRecommendations, modelPrediction]);
+
+  const digits7RecentAnalysis = useMemo(() => {
+    if (!history || history.length === 0) return [];
+    
+    const slotsOrder = ["00:01", "13:00", "16:00", "19:00", "22:00", "23:00"];
+    
+    // Sort entire history from newest (latest date/timeslot) to oldest
+    const sortedHistory = [...history].sort((a, b) => {
+      if (a.date !== b.date) {
+        return b.date.localeCompare(a.date);
+      }
+      const idxA = slotsOrder.indexOf(a.timeSlot);
+      const idxB = slotsOrder.indexOf(b.timeSlot);
+      return idxB - idxA;
+    });
+
+    const recentDraws = sortedHistory.slice(0, 40);
+    const set = bbfsRecommendations.digits7;
+
+    return recentDraws.map(d => {
+      const hasDigits = d.digits && d.digits.length >= 4;
+      if (!hasDigits) {
+        return {
+          id: d.id,
+          date: d.date,
+          timeSlot: d.timeSlot,
+          drawCodeString: d.drawCodeString,
+          isHit: false,
+          hitType: null
+        };
+      }
+      const [as, kop, kepala, ekor] = d.digits;
+      const sub2D = set.includes(kepala) && set.includes(ekor);
+      const sub3D = set.includes(kop) && set.includes(kepala) && set.includes(ekor);
+      const sub4D = set.includes(as) && set.includes(kop) && set.includes(kepala) && set.includes(ekor);
+      
+      const isHit = sub2D || sub3D || sub4D;
+      const hitType = sub4D ? "4D" : sub3D ? "3D" : sub2D ? "2D" : null;
+
+      return {
+        id: d.id,
+        date: d.date,
+        timeSlot: d.timeSlot,
+        drawCodeString: d.drawCodeString,
+        isHit,
+        hitType
+      };
+    });
+  }, [history, bbfsRecommendations.digits7]);
 
   return (
     <div id="applet-viewport" className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950">
@@ -1928,6 +1996,28 @@ export default function App() {
                   REKOMENDASI ANGKA CAMPUR & BBFS (5, 6, 7 DIGIT)
                 </h3>
               </div>
+              
+              {modelPrediction?.drawTarget ? (
+                <div className="mb-4 bg-gradient-to-r from-cyan-950/40 via-slate-950/70 to-slate-950/40 border border-cyan-850/60 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                    </span>
+                    <span className="text-slate-300 font-bold tracking-wide">TARGET PREDIKSI KELUARAN SELANJUTNYA:</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-cyan-950/60 text-cyan-300 border border-cyan-500/25 px-3 py-1 rounded-xl font-bold font-mono text-[11px] shrink-0 self-start sm:self-center">
+                    <span>{modelPrediction.drawTarget.date}</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="text-amber-400">SLOT {modelPrediction.drawTarget.timeSlot} WIB</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 bg-slate-950/40 border border-slate-850/60 p-3 rounded-2xl animate-pulse text-slate-500 font-mono text-[11px]">
+                  Sedang menghitung target waktu slot draw selanjutnya...
+                </div>
+              )}
+
               <p className="text-xs text-slate-400 mb-6 max-w-3xl leading-relaxed">
                 Kombinasi Bolak Balik Full Set (BBFS) di bawah dihitung menggunakan amalgamasi kualitatif dan kuantitatif dari seluruh modul analisis: **Poisson Density PMF**, **Markov Transition Matrix**, **Linear Regression Slopes**, serta model **Gemini AI Predictor** {aiPrediction ? "(DENGAN TUNING AI)" : "(STANDAR STATISTIKA MATEMATIS)"}.
               </p>
@@ -2052,9 +2142,7 @@ export default function App() {
                   </button>
                 </div>
 
-              </div>
-
-              {/* BBFS Probability Breakdown Matrix */}
+                      {/* BBFS Probability Breakdown Matrix */}
               <div id="bbfs-probability-matrix" className="mt-8 pt-6 border-t border-slate-800/80">
                 <div className="flex items-center gap-1.5 mb-4">
                   <TrendingUp className="h-4 w-4 text-emerald-450" />
@@ -2084,14 +2172,17 @@ export default function App() {
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
                               <span className="text-slate-500 block text-[8px] uppercase">Hit 2D</span>
                               <span className="text-emerald-450 font-bold font-sans">{bbfsProbabilityAnalysis.digits5.past2D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits5.hit2DCount}x JP</span>
                             </div>
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
                               <span className="text-slate-500 block text-[8px] uppercase">Hit 3D</span>
                               <span className="text-cyan-400 font-bold font-sans">{bbfsProbabilityAnalysis.digits5.past3D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits5.hit3DCount}x JP</span>
                             </div>
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
                               <span className="text-slate-500 block text-[8px] uppercase">Hit 4D</span>
                               <span className="text-purple-400 font-bold font-sans">{bbfsProbabilityAnalysis.digits5.past4D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits5.hit4DCount}x JP</span>
                             </div>
                           </div>
                         </td>
@@ -2124,14 +2215,17 @@ export default function App() {
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
                               <span className="text-slate-500 block text-[8px] uppercase">Hit 2D</span>
                               <span className="text-emerald-455 font-bold font-sans">{bbfsProbabilityAnalysis.digits6.past2D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits6.hit2DCount}x JP</span>
                             </div>
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
                               <span className="text-slate-500 block text-[8px] uppercase">Hit 3D</span>
                               <span className="text-cyan-400 font-bold font-sans">{bbfsProbabilityAnalysis.digits6.past3D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits6.hit3DCount}x JP</span>
                             </div>
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
                               <span className="text-slate-500 block text-[8px] uppercase">Hit 4D</span>
                               <span className="text-purple-400 font-bold font-sans">{bbfsProbabilityAnalysis.digits6.past4D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits6.hit4DCount}x JP</span>
                             </div>
                           </div>
                         </td>
@@ -2164,14 +2258,17 @@ export default function App() {
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
                               <span className="text-slate-500 block text-[8px] uppercase">Hit 2D</span>
                               <span className="text-emerald-450 font-bold font-sans">{bbfsProbabilityAnalysis.digits7.past2D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits7.hit2DCount}x JP</span>
                             </div>
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
-                              <span className="text-slate-500 block text-[8px] uppercase">Hit 3D</span>
+                              <span className="text-slate-550 block text-[8px] uppercase">Hit 3D</span>
                               <span className="text-cyan-400 font-bold font-sans">{bbfsProbabilityAnalysis.digits7.past3D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits7.hit3DCount}x JP</span>
                             </div>
                             <div className="bg-slate-950 p-1.5 rounded border border-slate-900/60">
-                              <span className="text-slate-500 block text-[8px] uppercase">Hit 4D</span>
+                              <span className="text-slate-550 block text-[8px] uppercase">Hit 4D</span>
                               <span className="text-purple-400 font-bold font-sans">{bbfsProbabilityAnalysis.digits7.past4D.toFixed(1)}%</span>
+                              <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{bbfsProbabilityAnalysis.digits7.hit4DCount}x JP</span>
                             </div>
                           </div>
                         </td>
@@ -2200,6 +2297,75 @@ export default function App() {
                   <p>** <strong>Probabilitas Prediktif</strong> adalah perkiraan pencocokan angka akan datang yang dihitung dengan mengintegrasikan kerapatan data Poisson tiap posisi dengan model transisi rantai Markov bauran.</p>
                 </div>
               </div>
+
+              {/* Catatan JP / Hit Terakhir di Database */}
+              <div id="bbfs-recent-jps" className="mt-6 pt-5 border-t border-slate-800/85">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle className="h-4 w-4 text-amber-500" />
+                    <h4 className="text-xs font-bold font-mono text-slate-200 uppercase tracking-widest">
+                      Detail Histori Hit (JP) vs Tidak Hit BBFS 7 Digit (40 Undian Terakhir)
+                    </h4>
+                  </div>
+                  <div className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-550 border border-amber-500/20 px-2 py-0.5 rounded flex items-center gap-1.5 shrink-0">
+                    <span>Set 7 Digit: {bbfsRecommendations.digits7.join("") || "Belum Dihitung"}</span>
+                  </div>
+                </div>
+                
+                <p className="text-[11px] text-slate-400 mb-4 leading-relaxed font-sans">
+                  Berikut adalah jajaran <strong>40 data undian terakhir</strong> diurutkan dari yang <strong>terbaru ke terlama</strong>. Sistem melakukan simulasi pencocokan pola 7 digit pilihan guna membedakan status JP (4D/3D/2D) dengan status Tidak Hit (Zong) secara nyata.
+                </p>
+
+                {digits7RecentAnalysis && digits7RecentAnalysis.length > 0 ? (
+                  <div className="bg-slate-950/65 border border-slate-900 rounded-2xl p-4 max-h-[380px] overflow-y-auto custom-scrollbar">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                      {digits7RecentAnalysis.map((h, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`flex items-center justify-between text-[11px] font-mono p-2.5 rounded-lg border transition-all duration-200 ${
+                            h.isHit 
+                              ? h.hitType === "4D"
+                                ? "bg-purple-950/30 border-purple-800/40 text-purple-200 shadow-sm shadow-purple-950/20"
+                                : h.hitType === "3D"
+                                  ? "bg-cyan-950/30 border-cyan-800/40 text-cyan-200 shadow-sm shadow-cyan-950/20"
+                                  : "bg-emerald-950/30 border-emerald-800/40 text-emerald-200 shadow-sm shadow-emerald-950/20"
+                              : "bg-slate-900/15 border-slate-900/50 text-slate-500"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`text-[9px] font-bold tracking-tight ${h.isHit ? "text-slate-400" : "text-slate-600"}`}>
+                              #{h.id} <span className="font-normal font-sans text-[8px]">({h.timeSlot})</span>
+                            </span>
+                            <span className={`font-black tracking-wider text-xs ${h.isHit ? "text-slate-100" : "text-slate-600 line-through decoration-slate-800/60"}`}>
+                              {h.drawCodeString}
+                            </span>
+                          </div>
+
+                          <div className="shrink-0">
+                            {h.isHit ? (
+                              <span className={`px-1.5 py-1 rounded-md font-black text-[9px] tracking-wide leading-none select-none uppercase shadow-sm ${
+                                h.hitType === "4D" ? "bg-purple-500/20 text-purple-300 border border-purple-500/35" :
+                                h.hitType === "3D" ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/35" :
+                                "bg-emerald-500/20 text-emerald-300 border border-emerald-500/35"
+                              }`}>
+                                {h.hitType} JP
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-1 rounded-md font-bold text-[9px] tracking-wide leading-none select-none text-slate-600 bg-slate-950/40 border border-slate-900 border-dashed uppercase">
+                                Miss
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/50 border border-dashed border-slate-900 p-8 text-center text-slate-500 font-mono text-[11px] rounded-2xl italic">
+                    Belum ada data undian di database untuk dianalisis.
+                  </div>
+                )}
+              </div>        </div>
 
               {/* Informative footer */}
               <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-mono text-slate-500">
