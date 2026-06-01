@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primitive definitions & Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isEmailVerified() && request.auth.token.email == "tjoekia@gmail.com";
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 2. Validation Blueprints (Anti-Update-Gap)
+    function isValidDraw(data) {
+      return data.keys().hasAll(['id', 'date', 'timeSlot', 'drawCodeString', 'digits', 'sum'])
+        && data.keys().size() <= 8
+        && data.id is string
+        && data.date is string && data.date.size() == 10
+        && data.timeSlot is string && data.timeSlot.size() <= 5
+        && data.drawCodeString is string && data.drawCodeString.size() == 4
+        && data.digits is list && data.digits.size() == 4
+        && data.digits[0] is int && data.digits[0] >= 0 && data.digits[0] <= 9
+        && data.digits[1] is int && data.digits[1] >= 0 && data.digits[1] <= 9
+        && data.digits[2] is int && data.digits[2] >= 0 && data.digits[2] <= 9
+        && data.digits[3] is int && data.digits[3] >= 0 && data.digits[3] <= 9
+        && data.sum is int;
+    }
+
+    // 4. Fortress matches
+    match /draws/{drawId} {
+      allow get, list: if true; // Public can securely read drew outputs
+      allow create, update: if isAdmin() || (isSignedIn() && isValidDraw(request.resource.data)) || (!isSignedIn() && isValidDraw(request.resource.data));
+      allow delete: if true;
+    }
+  }
+}

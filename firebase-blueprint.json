@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "MacauDraw": {
+      "title": "MacauDraw",
+      "description": "Historical Toto Macau draw entry used for probability predictions.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the draw (typically incremental string)."
+        },
+        "date": {
+          "type": "string",
+          "format": "regex",
+          "description": "Date of the draw in YYYY-MM-DD format."
+        },
+        "timeSlot": {
+          "type": "string",
+          "description": "Slot hour for the draw (e.g. 13:00, 16:00, 19:00)."
+        },
+        "drawCodeString": {
+          "type": "string",
+          "description": "Full 4-digit draw result (e.g. 5432)."
+        },
+        "digits": {
+          "type": "array",
+          "description": "Array of 4 individual digits: [As, Kop, Kepala, Ekor]."
+        },
+        "sum": {
+          "type": "integer",
+          "description": "Sum of all four digits."
+        },
+        "isFromOcr": {
+          "type": "boolean",
+          "description": "Indicates if the draw result was imported from an uploaded image via OCR."
+        }
+      },
+      "required": ["id", "date", "timeSlot", "drawCodeString", "digits", "sum"]
+    }
+  },
+  "firestore": {
+    "draws/{drawId}": {
+      "schema": "MacauDraw",
+      "description": "Persistent collection containing all recorded historical Toto Macau drawings."
+    }
+  }
+}

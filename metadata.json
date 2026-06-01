@@ -1,0 +1,6 @@
+{
+  "name": "Toto Macau AI Predictive Engine",
+  "description": "A advanced mathematical and statistical lottery analysis dashboard powered by Poisson PMF, Markov chains, regression trends, and the Google Gemini API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
