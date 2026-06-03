@@ -733,6 +733,26 @@ async function triggerScrapeFallback(res: any, warningMessage: string) {
 }
 
 
+function normalCDF(x: number): number {
+  const d1 = 0.0498673470;
+  const d2 = 0.0211410061;
+  const d3 = 0.0032776263;
+  const d4 = 0.0000380036;
+  const d5 = 0.0000488906;
+  const d6 = 0.0000053830;
+  const absoluteX = Math.abs(x);
+  const temp = 1.0 + absoluteX * (d1 + absoluteX * (d2 + absoluteX * (d3 + absoluteX * (d4 + absoluteX * (d5 + absoluteX * d6)))));
+  const normalVal = 0.5 * Math.pow(temp, -16);
+  return x >= 0 ? 1.0 - normalVal : normalVal;
+}
+
+function chiSquarePValue(x: number, df: number): number {
+  if (x <= 0) return 1.0;
+  const z = (Math.pow(x / df, 1/3) - (1 - 2 / (9 * df))) / Math.sqrt(2 / (9 * df));
+  const p = 1 - normalCDF(z);
+  return parseFloat(p.toFixed(4));
+}
+
 // API: Mathematical analytics and statistical model prediction engine
 app.post("/api/predict", (req, res) => {
   try {
@@ -1000,7 +1020,7 @@ app.post("/api/predict", (req, res) => {
       chiSquare: {
         chiSquareStat,
         criticalValue,
-        pValue: chiSquareStat > 16.919 ? 0.01 : 0.45, // Approximation for simple representation
+        pValue: chiSquarePValue(chiSquareStat, 9), // Dynamic p-value from Chi-Square stat
         isBiased,
         entropy
       },

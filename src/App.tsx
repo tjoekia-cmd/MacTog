@@ -1065,7 +1065,7 @@ export default function App() {
                 {modelPrediction?.chiSquare?.chiSquareStat ? modelPrediction.chiSquare.chiSquareStat.toFixed(2) : "Loading..."}
               </p>
               <p className="text-[10px] text-slate-500">
-                Critical (df=9): 16.92 ({modelPrediction?.chiSquare?.isBiased ? "Ada Bias" : "Acak Murni"})
+                Critical (df=9): 16.92 | P-Value: {modelPrediction?.chiSquare?.pValue !== undefined ? modelPrediction.chiSquare.pValue : "..."} ({modelPrediction?.chiSquare?.isBiased ? "Ada Bias" : "Acak Murni"})
               </p>
             </div>
           </div>
