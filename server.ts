@@ -736,9 +736,13 @@ async function triggerScrapeFallback(res: any, warningMessage: string) {
 // API: Mathematical analytics and statistical model prediction engine
 app.post("/api/predict", (req, res) => {
   try {
+    const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : 150;
+    const analysisLimit = Math.min(150, Math.max(100, isNaN(limitParam) ? 150 : limitParam));
+
     const historicalData = [...macauDrawHistory]
       .filter(d => d.date && d.timeSlot)
-      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+      .slice(-analysisLimit);
     const N = historicalData.length;
 
     if (N < 10) {
@@ -1136,7 +1140,12 @@ Kombinasi Shio **${shioAccents.join(" / ")}** berkorelasi kuat dengan medan magn
 // API: Custom Machine Learning training routing (Random Forest + ARIMA)
 app.post("/api/predict-ml", (req, res) => {
   try {
-    const validHistory = macauDrawHistory.filter(d => d.date && d.timeSlot);
+    const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : 150;
+    const analysisLimit = Math.min(150, Math.max(100, isNaN(limitParam) ? 150 : limitParam));
+    const validHistory = macauDrawHistory
+      .filter(d => d.date && d.timeSlot)
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+      .slice(-analysisLimit);
     const summary = trainMachineLearningModels(validHistory);
     res.json(summary);
   } catch (err: any) {
@@ -1147,8 +1156,13 @@ app.post("/api/predict-ml", (req, res) => {
 // API: Custom Anomaly Detector report
 app.get("/api/ml-anomalies", (req, res) => {
   try {
+    const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : 150;
+    const analysisLimit = Math.min(150, Math.max(100, isNaN(limitParam) ? 150 : limitParam));
     const detector = new MLAnomalyDetector();
-    const validHistory = macauDrawHistory.filter(d => d.date && d.timeSlot);
+    const validHistory = macauDrawHistory
+      .filter(d => d.date && d.timeSlot)
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+      .slice(-analysisLimit);
     const anomalies = detector.analyze(validHistory);
     res.json(anomalies);
   } catch (err: any) {
@@ -1159,7 +1173,13 @@ app.get("/api/ml-anomalies", (req, res) => {
 // API: Server-side Gemini AI Pattern Analysis ML Model
 app.post("/api/predict-ai", async (req, res) => {
   const key = process.env.GEMINI_API_KEY;
-  const validHistory = macauDrawHistory.filter(d => d.date && d.timeSlot);
+  const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : 150;
+  const analysisLimit = Math.min(150, Math.max(100, isNaN(limitParam) ? 150 : limitParam));
+  
+  const validHistory = macauDrawHistory
+    .filter(d => d.date && d.timeSlot)
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+    .slice(-analysisLimit);
 
   if (!key) {
     console.log("System configuration: starting predictive analytical sequence.");

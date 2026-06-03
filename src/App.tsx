@@ -46,6 +46,8 @@ export default function App() {
   const [history, setHistory] = useState<MacauDraw[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
+  // Analysis Limit state for integrated database query (constrained between 100 and 150)
+  const [analysisLimit, setAnalysisLimit] = useState<number>(150);
 
   // Machine Learning states
   const [mlSummary, setMlSummary] = useState<any | null>(null);
@@ -156,7 +158,7 @@ export default function App() {
     setIsModelLoading(true);
     setModelError("");
     try {
-      const response = await fetch("/api/predict", { method: "POST" });
+      const response = await fetch(`/api/predict?limit=${analysisLimit}`, { method: "POST" });
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || "Failed to trigger statistical analysis calculations.");
@@ -168,14 +170,14 @@ export default function App() {
     } finally {
       setIsModelLoading(false);
     }
-  }, []);
+  }, [analysisLimit]);
 
   // Fetch ML Training Summary and anomalies
   const runMlTrainEngine = useCallback(async () => {
     setIsMlLoading(true);
     setMlError("");
     try {
-      const response = await fetch("/api/predict-ml", { method: "POST" });
+      const response = await fetch(`/api/predict-ml?limit=${analysisLimit}`, { method: "POST" });
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || "Gagal melatih model Machine Learning luring.");
@@ -183,7 +185,7 @@ export default function App() {
       const data = await response.json();
       setMlSummary(data);
 
-      const rAnom = await fetch("/api/ml-anomalies");
+      const rAnom = await fetch(`/api/ml-anomalies?limit=${analysisLimit}`);
       if (rAnom.ok) {
         const dAnom = await rAnom.json();
         setMlAnomalies(dAnom);
@@ -193,20 +195,20 @@ export default function App() {
     } finally {
       setIsMlLoading(false);
     }
-  }, []);
+  }, [analysisLimit]);
 
   // Fetch initially on load
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
 
-  // Recalculate model predictions whenever the history changes
+  // Recalculate model predictions whenever the history or analysis limit changes
   useEffect(() => {
     if (history.length >= 10) {
       runMathematicalEngine();
       runMlTrainEngine();
     }
-  }, [history, runMathematicalEngine, runMlTrainEngine]);
+  }, [history, analysisLimit, runMathematicalEngine, runMlTrainEngine]);
 
   // Trigger web scraping sync
   const handleScrapeSync = async () => {
@@ -467,7 +469,7 @@ export default function App() {
     setIsAiLoading(true);
     setAiError("");
     try {
-      const response = await fetch("/api/predict-ai", { method: "POST" });
+      const response = await fetch(`/api/predict-ai?limit=${analysisLimit}`, { method: "POST" });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Gagal mengambil interpretasi pola undian dari AI.");
@@ -584,9 +586,27 @@ export default function App() {
     });
   }, [history, searchQuery, filterSlot]);
 
+  // Synchronized historical drawings limited specifically to the [100, 150] analysis window
+  const analyzedHistory = useMemo(() => {
+    if (!history || history.length === 0) return [];
+    
+    // Sort entire history from newest (latest date/timeslot) to oldest
+    const slotsOrder = ["00:01", "13:00", "16:00", "19:00", "22:00", "23:00"];
+    const sorted = [...history].sort((a, b) => {
+      if (a.date !== b.date) {
+        return b.date.localeCompare(a.date);
+      }
+      const idxA = slotsOrder.indexOf(a.timeSlot);
+      const idxB = slotsOrder.indexOf(b.timeSlot);
+      return idxB - idxA;
+    });
+    
+    return sorted.slice(0, analysisLimit);
+  }, [history, analysisLimit]);
+
   const statsSummary: StatisticalMetrics | null = useMemo(() => {
-    if (history.length === 0) return null;
-    const totalSample = history.length;
+    if (analyzedHistory.length === 0) return null;
+    const totalSample = analyzedHistory.length;
     const freqs = {
       as: Array(10).fill(0),
       kop: Array(10).fill(0),
@@ -600,7 +620,7 @@ export default function App() {
     let bigCount = 0;
     let smallCount = 0;
 
-    history.forEach(d => {
+    analyzedHistory.forEach(d => {
       d.digits.forEach((digit, index) => {
         if (digit >= 0 && digit <= 10) {
           freqs.overall[digit]++;
@@ -638,16 +658,16 @@ export default function App() {
       evenOddRatio: { even: evenCount, odd: oddCount },
       bigSmallRatio: { big: bigCount, small: smallCount }
     };
-  }, [history]);
+  }, [analyzedHistory]);
 
   // Recommend BBFS/Angka Campur of 5, 6, and 7 digits from state frequency, Poisson weights, Markov transitions, and Gemini AI predictions
   const bbfsRecommendations = useMemo(() => {
-    if (!history || history.length === 0) return { digits5: [], digits6: [], digits7: [] };
+    if (!analyzedHistory || analyzedHistory.length === 0) return { digits5: [], digits6: [], digits7: [] };
 
     const digitScores = Array(10).fill(0);
 
     // 1. Frequency weighting (recent 40 draws) - gives a realistic baseline
-    const recentHistory = history.slice(-40);
+    const recentHistory = analyzedHistory.slice(0, 40);
     recentHistory.forEach(d => {
       d.digits.forEach(digit => {
         if (digit >= 0 && digit <= 9) {
@@ -679,7 +699,7 @@ export default function App() {
     }
 
     // 4. Overlapping overall frequency in all database
-    history.forEach(d => {
+    analyzedHistory.forEach(d => {
       d.digits.forEach(digit => {
         if (digit >= 0 && digit <= 9) {
           digitScores[digit] += 0.2; // slight boost for long-term pattern
@@ -732,11 +752,11 @@ export default function App() {
       digits6: [...ranked].slice(0, 6).sort((a, b) => a - b),
       digits7: [...ranked].slice(0, 7).sort((a, b) => a - b)
     };
-  }, [history, modelPrediction, aiPrediction]);
+  }, [analyzedHistory, modelPrediction, aiPrediction]);
 
   // Calculate detailed probability breakdown for already drawn (historical) and upcoming (future) drawings
   const bbfsProbabilityAnalysis = useMemo(() => {
-    if (!history || history.length === 0) {
+    if (!analyzedHistory || analyzedHistory.length === 0) {
       return {
         digits5: { past2D: 0, past3D: 0, past4D: 0, future2D: 0, future3D: 0, future4D: 0, hit2DCount: 0, hit3DCount: 0, hit4DCount: 0, recentHits: [] },
         digits6: { past2D: 0, past3D: 0, past4D: 0, future2D: 0, future3D: 0, future4D: 0, hit2DCount: 0, hit3DCount: 0, hit4DCount: 0, recentHits: [] },
@@ -753,8 +773,8 @@ export default function App() {
       const recentHits: any[] = [];
 
       // Loop draws reverse (from newest to oldest) to get the most recent hits first
-      for (let i = history.length - 1; i >= 0; i--) {
-        const d = history[i];
+      for (let i = analyzedHistory.length - 1; i >= 0; i--) {
+        const d = analyzedHistory[i];
         if (!d.digits) continue;
         const [as, kop, kepala, ekor] = d.digits;
         const sub2D = set.includes(kepala) && set.includes(ekor);
@@ -778,9 +798,9 @@ export default function App() {
       }
 
       return {
-        past2D: (hit2D / history.length) * 100,
-        past3D: (hit3D / history.length) * 100,
-        past4D: (hit4D / history.length) * 100,
+        past2D: (hit2D / analyzedHistory.length) * 100,
+        past3D: (hit3D / analyzedHistory.length) * 100,
+        past4D: (hit4D / analyzedHistory.length) * 100,
         hit2DCount: hit2D,
         hit3DCount: hit3D,
         hit4DCount: hit4D,
@@ -806,7 +826,7 @@ export default function App() {
         if (ekorData) ekorData.probabilities.forEach((item: any) => pEkor[item.digit] = item.probability);
       } else {
         const counts = [Array(10).fill(0), Array(10).fill(0), Array(10).fill(0), Array(10).fill(0)];
-        history.forEach(d => {
+        analyzedHistory.forEach(d => {
           d.digits.forEach((digit, posIdx) => {
             if (digit >= 0 && digit <= 9 && posIdx < 4) {
               counts[posIdx][digit]++;
@@ -814,10 +834,10 @@ export default function App() {
           });
         });
         for (let digit = 0; digit < 10; digit++) {
-          pAs[digit] = (counts[0][digit] + 1) / (history.length + 10);
-          pKop[digit] = (counts[1][digit] + 1) / (history.length + 10);
-          pKepala[digit] = (counts[2][digit] + 1) / (history.length + 10);
-          pEkor[digit] = (counts[3][digit] + 1) / (history.length + 10);
+          pAs[digit] = (counts[0][digit] + 1) / (analyzedHistory.length + 10);
+          pKop[digit] = (counts[1][digit] + 1) / (analyzedHistory.length + 10);
+          pKepala[digit] = (counts[2][digit] + 1) / (analyzedHistory.length + 10);
+          pEkor[digit] = (counts[3][digit] + 1) / (analyzedHistory.length + 10);
         }
       }
 
@@ -850,24 +870,12 @@ export default function App() {
       digits6: { ...stats6, ...fstats6 },
       digits7: { ...stats7, ...fstats7 }
     };
-  }, [history, bbfsRecommendations, modelPrediction]);
+  }, [analyzedHistory, bbfsRecommendations, modelPrediction]);
 
   const digits7RecentAnalysis = useMemo(() => {
-    if (!history || history.length === 0) return [];
-    
-    const slotsOrder = ["00:01", "13:00", "16:00", "19:00", "22:00", "23:00"];
-    
-    // Sort entire history from newest (latest date/timeslot) to oldest
-    const sortedHistory = [...history].sort((a, b) => {
-      if (a.date !== b.date) {
-        return b.date.localeCompare(a.date);
-      }
-      const idxA = slotsOrder.indexOf(a.timeSlot);
-      const idxB = slotsOrder.indexOf(b.timeSlot);
-      return idxB - idxA;
-    });
+    if (!analyzedHistory || analyzedHistory.length === 0) return [];
 
-    const recentDraws = sortedHistory.slice(0, 40);
+    const recentDraws = analyzedHistory.slice(0, 40);
     const set = bbfsRecommendations.digits7;
 
     return recentDraws.map(d => {
@@ -899,7 +907,7 @@ export default function App() {
         hitType
       };
     });
-  }, [history, bbfsRecommendations.digits7]);
+  }, [analyzedHistory, bbfsRecommendations.digits7]);
 
   return (
     <div id="applet-viewport" className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950">
@@ -1015,9 +1023,9 @@ export default function App() {
               <Database className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Database Undian</p>
-              <p className="text-xl font-bold font-mono text-cyan-400">{history.length} Draws</p>
-              <p className="text-[10px] text-slate-500">Keluaran terintegrasi</p>
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Database Dianalisis</p>
+              <p className="text-xl font-bold font-mono text-cyan-400">{analyzedHistory.length} / {history.length} Draws</p>
+              <p className="text-[10px] text-slate-500">Maksimal limit aktif (100-150)</p>
             </div>
           </div>
 
@@ -1390,6 +1398,24 @@ export default function App() {
                 </div>
 
                 <div className="flex gap-2 items-center flex-wrap">
+                  {/* Integrated Database Analysis Limit Slider (between 100 and 150) */}
+                  <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300">
+                    <span className="text-[10px] font-mono text-cyan-400 font-semibold uppercase tracking-wider">Limit Analisis:</span>
+                    <input
+                      type="range"
+                      min="100"
+                      max="150"
+                      step="5"
+                      value={analysisLimit}
+                      onChange={e => setAnalysisLimit(parseInt(e.target.value, 10))}
+                      className="w-20 accent-cyan-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                      title="Batasi analisis database terintegrasi pada kisaran 100 hingga maksimal 150"
+                    />
+                    <span className="font-mono text-slate-200 font-bold bg-slate-900 border border-slate-850 px-1.5 py-0.5 rounded text-[10.5px]">
+                      {analysisLimit}
+                    </span>
+                  </div>
+
                   <div className="relative">
                     <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
                     <input
@@ -1447,7 +1473,7 @@ export default function App() {
                     </thead>
                     <tbody className="divide-y divide-slate-800/40">
                       {filteredHistory.slice(0, 15).map((draw, idx) => (
-                        <tr key={draw.id} className="hover:bg-slate-800/20 transition-colors">
+                        <tr key={`${draw.id || 'draw'}-${idx}`} className="hover:bg-slate-800/20 transition-colors">
                           <td className="py-3.5 px-4 font-mono font-bold text-slate-600">#{draw.id}</td>
                           <td className="py-3.5 px-4 font-mono flex items-center gap-1.5 text-slate-300">
                             <Calendar className="h-3 w-3 text-cyan-500" /> {draw.date}
@@ -1512,7 +1538,7 @@ export default function App() {
                   Model Probabilitas Poisson (Poisson PMF Model)
                 </h2>
                 <p className="text-xs text-slate-400 mt-1 lines-normal leading-relaxed">
-                  Dalam teori probabilitas, <strong>Distribusi Poisson</strong> memodelkan kemungkinan terjadinya peristiwa dalam interval waktu yang ditentukan. Di sini, kita menghitung tingkat kemunculan rata-rata (<code className="text-cyan-400 font-mono">&#x03BB;</code>) untuk masing-masing digit (0-9) di setiap posisi As, Kop, Kepala, dan Ekor selama {history.length} undian terakhir.
+                  Dalam teori probabilitas, <strong>Distribusi Poisson</strong> memodelkan kemungkinan terjadinya peristiwa dalam interval waktu yang ditentukan. Di sini, kita menghitung tingkat kemunculan rata-rata (<code className="text-cyan-400 font-mono">&#x03BB;</code>) untuk masing-masing digit (0-9) di setiap posisi As, Kop, Kepala, dan Ekor selama {analyzedHistory.length} undian terakhir.
                 </p>
                 <div className="mt-4 font-mono text-[10px] bg-slate-950/80 p-2.5 rounded border border-slate-850 inline-block text-cyan-400">
                   Rumus Poisson PMF: P(X = k) = ( &lambda;<sup>k</sup> * e<sup>-&lambda;</sup> ) / k!
@@ -1896,7 +1922,7 @@ export default function App() {
                               const x = 40 + i * stepX;
                               const y = getY(draw.sum);
                               return (
-                                <g key={draw.id}>
+                                <g key={`${draw.id || 'draw'}-${i}`}>
                                   <circle cx={x} cy={y} r="4" className="fill-slate-950 stroke-emerald-400 stroke-2" />
                                   <text x={x} y={y - 8} textAnchor="middle" className="fill-slate-300 font-mono text-[9px] font-bold">
                                     {draw.drawCodeString}
@@ -2425,7 +2451,7 @@ export default function App() {
                   </table>
                 </div>
                 <div className="text-[10px] text-slate-500 mt-2.5 space-y-1">
-                  <p>* <strong>Probabilitas Historis (Backtest)</strong> dihitung dari total hit rate aktual set BBFS tersebut pada seluruh database ({history.length} data undian).</p>
+                  <p>* <strong>Probabilitas Historis (Backtest)</strong> dihitung dari total hit rate aktual set BBFS tersebut pada seluruh database aktif yang dianalisis ({analyzedHistory.length} data undian, dibatasi antara 100 - 150 undian).</p>
                   <p>** <strong>Probabilitas Prediktif</strong> adalah perkiraan pencocokan angka akan datang yang dihitung dengan mengintegrasikan kerapatan data Poisson tiap posisi dengan model transisi rantai Markov bauran.</p>
                 </div>
               </div>
@@ -2545,8 +2571,8 @@ export default function App() {
                       <div>
                         <span className="text-[9px] font-mono text-slate-450 uppercase tracking-widest font-semibold block mb-2">Rekomendasi Set 4D (As-Kop-Kepala-Ekor)</span>
                         <div className="flex flex-wrap gap-2">
-                          {aiPrediction.predictions4D.map(code => (
-                            <span key={code} className="bg-slate-950 text-emerald-400 font-mono font-bold tracking-widest px-3 py-1.5 rounded-lg border border-slate-800 text-sm">
+                          {aiPrediction.predictions4D.map((code, idx) => (
+                            <span key={`${code}-${idx}`} className="bg-slate-950 text-emerald-400 font-mono font-bold tracking-widest px-3 py-1.5 rounded-lg border border-slate-800 text-sm">
                               {code}
                             </span>
                           ))}
@@ -2557,8 +2583,8 @@ export default function App() {
                       <div>
                         <span className="text-[9px] font-mono text-slate-450 uppercase tracking-widest font-semibold block mb-1.5">Rekomendasi Set 3D (Kop-Kepala-Ekor)</span>
                         <div className="flex flex-wrap gap-2">
-                          {aiPrediction.predictions3D.map(code => (
-                            <span key={code} className="bg-slate-950 text-cyan-400 font-mono font-medium tracking-wider px-2.5 py-1.5 rounded-lg border border-slate-800 text-xs">
+                          {aiPrediction.predictions3D.map((code, idx) => (
+                            <span key={`${code}-${idx}`} className="bg-slate-950 text-cyan-400 font-mono font-medium tracking-wider px-2.5 py-1.5 rounded-lg border border-slate-800 text-xs">
                               {code}
                             </span>
                           ))}
@@ -2569,8 +2595,8 @@ export default function App() {
                       <div>
                         <span className="text-[9px] font-mono text-slate-450 uppercase tracking-widest font-semibold block mb-1.5">Rekomendasi Set 2D (Kepala-Ekor)</span>
                         <div className="flex flex-wrap gap-2">
-                          {aiPrediction.predictions2D.map(code => (
-                            <span key={code} className="bg-slate-950 text-indigo-300 font-mono font-medium tracking-wider px-2.5 py-1.5 rounded-lg border border-slate-800 text-xs text-center min-w-10">
+                          {aiPrediction.predictions2D.map((code, idx) => (
+                            <span key={`${code}-${idx}`} className="bg-slate-950 text-indigo-300 font-mono font-medium tracking-wider px-2.5 py-1.5 rounded-lg border border-slate-800 text-xs text-center min-w-10">
                               {code}
                             </span>
                           ))}
@@ -2582,8 +2608,8 @@ export default function App() {
                         <div>
                           <span className="text-[9px] font-mono text-slate-450 uppercase tracking-widest block mb-1 font-semibold">Colok Bebas</span>
                           <div className="flex gap-1.5">
-                            {aiPrediction.colokBebas.map(digit => (
-                              <span key={digit} className="bg-slate-950 text-amber-400 font-mono font-bold w-7 h-7 flex items-center justify-center rounded-full border border-slate-800 text-xs">
+                            {aiPrediction.colokBebas.map((digit, idx) => (
+                              <span key={`${digit}-${idx}`} className="bg-slate-950 text-amber-400 font-mono font-bold w-7 h-7 flex items-center justify-center rounded-full border border-slate-800 text-xs">
                                 {digit}
                               </span>
                             ))}
@@ -2593,8 +2619,8 @@ export default function App() {
                         <div>
                           <span className="text-[9px] font-mono text-slate-450 uppercase tracking-widest block mb-1 font-semibold">Colok Macau</span>
                           <div className="flex flex-wrap gap-1">
-                            {aiPrediction.colokMacau.map(pair => (
-                              <span key={pair} className="bg-slate-950 text-purple-400 font-mono font-semibold px-2 py-1 rounded text-[10px] border border-slate-800">
+                            {aiPrediction.colokMacau.map((pair, idx) => (
+                              <span key={`${pair}-${idx}`} className="bg-slate-950 text-purple-400 font-mono font-semibold px-2 py-1 rounded text-[10px] border border-slate-800">
                                 {pair}
                               </span>
                             ))}
@@ -2606,8 +2632,8 @@ export default function App() {
                       <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between">
                         <span className="text-[9px] font-mono text-slate-450 uppercase tracking-widest font-semibold">Zodiak Shio Berpengaruh:</span>
                         <div className="flex gap-1">
-                          {aiPrediction.shioAccents.map(shio => (
-                            <span key={shio} className="bg-indigo-500/10 text-indigo-300 border border-indigo-400/20 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
+                          {aiPrediction.shioAccents.map((shio, idx) => (
+                            <span key={`${shio}-${idx}`} className="bg-indigo-500/10 text-indigo-300 border border-indigo-400/20 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
                               {shio}
                             </span>
                           ))}
@@ -2934,9 +2960,9 @@ export default function App() {
 
               {mlAnomalies && mlAnomalies.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[460px] overflow-y-auto pr-1">
-                  {mlAnomalies.map((anom: any) => (
+                  {mlAnomalies.map((anom: any, idx: number) => (
                     <div 
-                      key={anom.id} 
+                      key={`${anom.id || 'anom'}-${idx}`} 
                       className={`p-4 rounded-2xl border flex flex-col justify-between ${
                         anom.isExtremeOutlier 
                           ? "bg-rose-950/15 border-rose-900/35 hover:border-rose-800/55" 
@@ -3102,8 +3128,8 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/40">
-                        {backtestResults.trialsDetail.map((trial) => (
-                          <tr key={trial.drawId} className="hover:bg-slate-800/10 transition-colors">
+                        {backtestResults.trialsDetail.map((trial, idx) => (
+                          <tr key={`${trial.drawId || 'trial'}-${idx}`} className="hover:bg-slate-800/10 transition-colors">
                             <td className="py-3 px-3">
                               <div className="text-slate-300 font-semibold">{trial.date}</div>
                               <div className="text-[10px] text-slate-450">{trial.timeSlot} WIB</div>
