@@ -2141,8 +2141,140 @@ export default function App() {
                     Salin 7 Digit Set
                   </button>
                 </div>
+              </div>
 
-                      {/* BBFS Probability Breakdown Matrix */}
+              {/* REKOMENDASI FORMULASI PEMASANGAN STRATEGIS */}
+              <div className="mt-8 bg-slate-950/40 border border-slate-850/60 p-5 rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Award className="h-4 w-4 text-amber-500 animate-pulse" />
+                    <h4 className="text-xs font-bold font-mono text-slate-200 uppercase tracking-widest">
+                      Rekomendasi Formulasi Pemasangan Strategis (Tangguh & Tajam)
+                    </h4>
+                  </div>
+                  <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-bold px-1.5 py-0.5 rounded border border-emerald-500/20 uppercase tracking-wider self-start sm:ml-auto">
+                    Akurasi Komposit Terbaik
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400 mb-5 leading-relaxed font-sans">
+                  Berdasarkan kalkulasi probabilitas komposit terkini dari mesin pembelajaran AI dan seluruh variabel statistik, berikut adalah rekomendasi taktis terkuat untuk mendeploy angka bbfs campur Anda dengan efisiensi modal dan rasio penetrasi (JP) tertajam:
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  
+                  {/* Strategi 1: Tangguh */}
+                  <div className="bg-gradient-to-b from-slate-900/90 to-slate-950 border border-purple-500/15 p-4 rounded-xl flex flex-col justify-between hover:border-purple-500/30 transition-all duration-300">
+                    <div>
+                      <div className="flex items-center justify-between mb-3 border-b border-slate-800/60 pb-2">
+                        <span className="text-[11px] font-bold font-mono text-purple-400 flex items-center gap-1.5">
+                          🔥 PILIHAN TANGGUH (RASIO TERBAIK)
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-xs font-mono mb-4 text-slate-300">
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Pilihan Set:</span>
+                          <span className="text-purple-400 font-extrabold">6 DIGIT BBFS</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Angka Pasangan:</span>
+                          <span className="text-slate-200 font-semibold tracking-wider font-sans">{bbfsRecommendations.digits6.join("") || "Belum Dihitung"}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Fokus Betting:</span>
+                          <span className="text-purple-300 font-bold">3D ATAU 2D</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Probabilitas JP 2D:</span>
+                          <span className="text-emerald-400 font-bold">{bbfsProbabilityAnalysis.digits6.future2D.toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between py-1">
+                          <span className="text-slate-500">Probabilitas JP 3D:</span>
+                          <span className="text-cyan-400 font-bold">{bbfsProbabilityAnalysis.digits6.future3D.toFixed(2)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-purple-950/20 text-purple-300 border border-purple-900/40 p-2.5 rounded-lg text-[10px] leading-relaxed font-sans mt-auto">
+                      <strong>Rasio Efisiensi Terbaik:</strong> Menyeimbangkan modal 30 kombinasi line 2D (atau 120 line 3D) dengan persentase kemungkinan tembus yang seimbang. Direkomendasikan sebagai pilihan betting utama.
+                    </div>
+                  </div>
+
+                  {/* Strategi 2: Aman */}
+                  <div className="bg-gradient-to-b from-slate-900/90 to-slate-950 border border-amber-500/15 p-4 rounded-xl flex flex-col justify-between hover:border-amber-500/30 transition-all duration-300">
+                    <div>
+                      <div className="flex items-center justify-between mb-3 border-b border-slate-800/60 pb-2">
+                        <span className="text-[11px] font-bold font-mono text-amber-400 flex items-center gap-1.5">
+                          🛡️ PILIHAN AMAN (SAFETY-MAX)
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-xs font-mono mb-4 text-slate-300">
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Pilihan Set:</span>
+                          <span className="text-amber-400 font-extrabold">7 DIGIT BBFS</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Angka Pasangan:</span>
+                          <span className="text-slate-200 font-semibold tracking-wider font-sans">{bbfsRecommendations.digits7.join("") || "Belum Dihitung"}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Fokus Betting:</span>
+                          <span className="text-amber-300 font-bold">4D / 3D / 2D</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Probabilitas JP 3D:</span>
+                          <span className="text-cyan-400 font-bold">{bbfsProbabilityAnalysis.digits7.future3D.toFixed(2)}%</span>
+                        </div>
+                        <div className="flex justify-between py-1">
+                          <span className="text-slate-500">Probabilitas JP 4D:</span>
+                          <span className="text-purple-400 font-bold">{bbfsProbabilityAnalysis.digits7.future4D.toFixed(2)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-amber-950/20 text-amber-300 border border-amber-900/40 p-2.5 rounded-lg text-[10px] leading-relaxed font-sans mt-auto">
+                      <strong>Proteksi Keamanan Maksimum:</strong> Memiliki cakupan peluang historis JP 2D di atas 90%. Sangat ampuh menahan rintangan sebaran acak angka Macau untuk menjaring JP berkelanjutan.
+                    </div>
+                  </div>
+
+                  {/* Strategi 3: Ekonomis */}
+                  <div className="bg-gradient-to-b from-slate-900/90 to-slate-950 border border-cyan-500/15 p-4 rounded-xl flex flex-col justify-between hover:border-cyan-500/30 transition-all duration-300">
+                    <div>
+                      <div className="flex items-center justify-between mb-3 border-b border-slate-800/60 pb-2">
+                        <span className="text-[11px] font-bold font-mono text-cyan-400 flex items-center gap-1.5">
+                          💰 PILIHAN TAKTIS (EKONOMIS)
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-xs font-mono mb-4 text-slate-300">
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Pilihan Set:</span>
+                          <span className="text-cyan-400 font-extrabold">5 DIGIT BBFS</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Angka Pasangan:</span>
+                          <span className="text-slate-200 font-semibold tracking-wider font-sans">{bbfsRecommendations.digits5.join("") || "Belum Dihitung"}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Fokus Betting:</span>
+                          <span className="text-cyan-300 font-bold">2D ATAU COLOK</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-900/80 py-1">
+                          <span className="text-slate-500">Probabilitas JP 2D:</span>
+                          <span className="text-emerald-400 font-bold">{bbfsProbabilityAnalysis.digits5.future2D.toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between py-1">
+                          <span className="text-slate-500">Kebutuhan Modal:</span>
+                          <span className="text-emerald-400 font-bold">Paling Rendah</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-cyan-950/20 text-cyan-300 border border-cyan-900/40 p-2.5 rounded-lg text-[10px] leading-relaxed font-sans mt-auto">
+                      <strong>Strategi Efisiensi Anggaran:</strong> Terdiri dari kombinasi ringkas (hanya 20 kombinasi 2D). Ideal untuk pasang colok bebas atau uji pasar tanpa risiko depresiasi saldo berlebih.
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* BBFS Probability Breakdown Matrix */}
               <div id="bbfs-probability-matrix" className="mt-8 pt-6 border-t border-slate-800/80">
                 <div className="flex items-center gap-1.5 mb-4">
                   <TrendingUp className="h-4 w-4 text-emerald-450" />
@@ -2365,7 +2497,7 @@ export default function App() {
                     Belum ada data undian di database untuk dianalisis.
                   </div>
                 )}
-              </div>        </div>
+              </div>
 
               {/* Informative footer */}
               <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-mono text-slate-500">
